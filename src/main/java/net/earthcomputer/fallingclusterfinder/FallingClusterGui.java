@@ -163,7 +163,8 @@ public class FallingClusterGui {
         });
         ((JSpinner.DefaultEditor) hashSizeInput.getEditor()).getTextField().setEditable(false);
         renderDistanceInput = new JSpinner(new SpinnerNumberModel(16, 2, 64, 1));
-        clusterChunkCountInput = new JSpinner(new SpinnerNumberModel(100, 0, 10000, 1));
+        clusterChunkCountInput = new JSpinner(new SpinnerNumberModel(1000, 0, 10000, 1));
+        rectangleWidthInput = new JSpinner(new SpinnerNumberModel(100, 1, 10000, 1));
         searchLimitInput = new JSpinner(new SpinnerNumberModel(5, 1, 100, 1));
 
         permaloaderComponent = new JPanel();

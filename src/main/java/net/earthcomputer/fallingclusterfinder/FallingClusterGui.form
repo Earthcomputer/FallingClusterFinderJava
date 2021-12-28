@@ -239,7 +239,7 @@
                   <text value="Rectangle Width:"/>
                 </properties>
               </component>
-              <component id="52368" class="javax.swing.JSpinner" binding="rectangleWidthInput">
+              <component id="52368" class="javax.swing.JSpinner" binding="rectangleWidthInput" custom-create="true">
                 <constraints/>
                 <properties/>
               </component>
