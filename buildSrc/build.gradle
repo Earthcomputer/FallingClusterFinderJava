@@ -1,0 +1,31 @@
+// Taken from https://github.com/dieterstueken/GuiDesignerSample
+
+plugins {
+    id 'java-gradle-plugin'
+    id 'java-library'
+}
+
+ext {
+    idea_version = '212.5080.55'
+    ant_tasks = "com.jetbrains.intellij.java:java-compiler-ant-tasks:$idea_version"
+    forms_rt = "com.jetbrains.intellij.java:java-gui-forms-rt:$idea_version"
+}
+
+version 2021.2
+
+/*
+repositories {
+    mavenCentral()
+    maven { url = 'https://www.jetbrains.com/intellij-repository/releases' }
+    maven { url = 'https://cache-redirector.jetbrains.com/intellij-dependencies' }
+}
+*/
+
+gradlePlugin {
+    plugins {
+        simplePlugin {
+            id = 'gui-builder-plugin'
+            implementationClass = 'GuiBuilderPlugin'
+        }
+    }
+}

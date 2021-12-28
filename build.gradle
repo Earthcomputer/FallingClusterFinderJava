@@ -1,0 +1,23 @@
+plugins {
+    id 'java'
+    id 'gui-builder-plugin'
+}
+
+group 'net.earthcomputer'
+version '1.0'
+
+repositories {
+    mavenCentral()
+}
+
+jar {
+    manifest {
+        attributes += [
+            'Main-Class': 'net.earthcomputer.fallingclusterfinder.FallingClusterFinder'
+        ]
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
