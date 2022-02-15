@@ -3,8 +3,10 @@ package net.earthcomputer.fallingclusterfinder;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
@@ -32,10 +34,13 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Random;
+import java.util.Set;
 
 public class FallingClusterGui {
     private static final String[] NAMES = {"Xcom", "Kerb", "Cheater", "Earthcomputer", "coolmann", "punchster", "cortex", "Myren"};
@@ -372,8 +377,31 @@ public class FallingClusterGui {
         });
         outputPanel.add(saveToCsvButton);
 
+        JPanel saveSetupPanel = new JPanel();
+        JComboBox<Direction> directionComboBox = new JComboBox<>(Direction.values());
+        JComboBox<Direction> secondaryDirectionComboBox = new JComboBox<>(((Direction) Objects.requireNonNull(directionComboBox.getSelectedItem())).getOrthogonalDirections());
+        directionComboBox.addActionListener(e -> {
+            Direction selectedDirection = (Direction) directionComboBox.getSelectedItem();
+            if (selectedDirection == null) {
+                return;
+            }
+            Direction selectedSecondaryDirection = (Direction) secondaryDirectionComboBox.getSelectedItem();
+            if (selectedSecondaryDirection == null) {
+                return;
+            }
+            if (selectedDirection.isXAxis() == selectedSecondaryDirection.isXAxis()) {
+                secondaryDirectionComboBox.setModel(new DefaultComboBoxModel<>(selectedDirection.getOrthogonalDirections()));
+            }
+        });
+        saveSetupPanel.setLayout(new BoxLayout(saveSetupPanel, BoxLayout.Y_AXIS));
         JButton saveSetupMcFunctionButton = new JButton("Save Setup MC Function");
         saveSetupMcFunctionButton.addActionListener(e -> {
+            Direction direction = (Direction) directionComboBox.getSelectedItem();
+            Direction secondaryDirection = (Direction) secondaryDirectionComboBox.getSelectedItem();
+            if (direction == null || secondaryDirection == null) {
+                return;
+            }
+            Set<Point> clusterChunksSet = new HashSet<>(chunks);
             JFileChooser fileChooser = new JFileChooser();
             fileChooser.setSelectedFile(new File("cluster_setup.mcfunction"));
             if (fileChooser.showSaveDialog(this.mainPanel) == JFileChooser.APPROVE_OPTION) {
@@ -383,18 +411,110 @@ public class FallingClusterGui {
                     writer.println("summon armor_stand ~ ~ ~ {Tags:[\"cluster\"]}");
                     writer.println("scoreboard objectives add numchunks dummy");
                     writer.println("tellraw @a \"Run \\\"scoreboard players set @e[tag=cluster] numchunks <n>\\\" to set the number of chunks in the cluster you want to load.\"");
-                    for (Point chunk : chunks) {
-                        writer.println("chunk load " + chunk.x + " " + chunk.y);
-                        Random rand = new Random(OpenHashMap.hash(chunk, 0));
-                        String hopperName = String.format(WITTY_COMMENTS[rand.nextInt(WITTY_COMMENTS.length)], NAMES[rand.nextInt(NAMES.length)]);
-                        int x = chunk.x * 16 + (chunk.x & 1) * 15;
-                        int z = chunk.y * 16 + (chunk.y & 1) * 15;
-                        writer.println(String.format("setblock %d 165 %d hopper facing=west replace {CustomName:\"%s\"}", x, z, hopperName));
-                        if((chunk.x & 1) == 1 && (chunk.y & 1) == 1) {
-                            writer.println(String.format("setblock %d 166 %d dropper facing=up", x, z));
-                            writer.println(String.format("setblock %d 167 %d chest facing=north", x, z));
-                        } else {
-                            writer.println(String.format("setblock %d 166 %d dropper facing=up", x, z));
+                    // load all the chunks
+                    for (int dx = 0; dx < rectangleSize.x; dx++) {
+                        for (int dz = 0; dz < rectangleSize.y; dz++) {
+                            writer.println(String.format("say Loading chunk %d,%d", rectangleOrigin.x + dx, rectangleOrigin.y + dz));
+                            writer.println(String.format("chunk load %d %d", rectangleOrigin.x + dx, rectangleOrigin.y + dz));
+                        }
+                    }
+                    // add stone brick lines
+                    if (direction.isXAxis()) {
+                        for (int dz = 0; dz < rectangleSize.y; dz += 2) {
+                            int z = (rectangleOrigin.y + dz) * 16 + (secondaryDirection == Direction.SOUTH ? 14 : 17);
+                            writer.println(String.format("fill %d 165 %d %d 165 %d stonebrick", rectangleOrigin.x * 16, z, (rectangleOrigin.x + rectangleSize.x) * 16 - 1, z));
+                        }
+                    } else {
+                        for (int dx = 0; dx < rectangleSize.x; dx += 2) {
+                            int x = (rectangleOrigin.x + dx) * 16 + (secondaryDirection == Direction.EAST ? 14 : 17);
+                            writer.println(String.format("fill %d 165 %d %d 165 %d stonebrick", x, rectangleOrigin.y * 16, x, (rectangleOrigin.y + rectangleSize.y) * 16 - 1));
+                        }
+                    }
+                    // add standalone chests
+                    for (int dx = 0; dx < rectangleSize.x; dx += 2) {
+                        for (int dz = 0; dz < rectangleSize.y; dz += 2) {
+                            int x, z;
+                            if (direction.isXAxis()) {
+                                x = direction == Direction.EAST ? (rectangleOrigin.x + dx) * 16 + 31 : (rectangleOrigin.x + dx) * 16;
+                                z = (rectangleOrigin.y + dz) * 16 + (secondaryDirection == Direction.SOUTH ? 15 : 16);
+                            } else {
+                                z = direction == Direction.SOUTH ? (rectangleOrigin.y + dz) * 16 + 31 : (rectangleOrigin.y + dz) * 16;
+                                x = (rectangleOrigin.x + dx) * 16 + (secondaryDirection == Direction.EAST ? 15 : 16);
+                            }
+                            if (x == rectangleOrigin.x * 16) {
+                                continue;
+                            }
+                            if (z == rectangleOrigin.y * 16) {
+                                continue;
+                            }
+                            if (x >= (rectangleOrigin.x + rectangleSize.x) * 16 - 1) {
+                                continue;
+                            }
+                            if (z >= (rectangleOrigin.y + rectangleSize.y) * 16 - 1) {
+                                continue;
+                            }
+                            writer.println(String.format("setblock %d 165 %d chest facing=%s", x, z, secondaryDirection.internalName()));
+                        }
+                    }
+                    // add hoppers or replacements
+                    for (int dx = 0; dx < rectangleSize.x; dx++) {
+                        for (int dz = 0; dz < rectangleSize.y; dz++) {
+                            boolean needsChest;
+                            switch (direction) {
+                                case NORTH: {
+                                    needsChest = (dz & 1) == 1 && (((dx & 1) == 0) == (secondaryDirection == Direction.EAST));
+                                    break;
+                                }
+                                case EAST: {
+                                    needsChest = (dx & 1) == 0 && (((dz & 1) == 0) == (secondaryDirection == Direction.SOUTH));
+                                    break;
+                                }
+                                case SOUTH: {
+                                    needsChest = (dz & 1) == 0 && (((dx & 1) == 0) == (secondaryDirection == Direction.EAST));
+                                    break;
+                                }
+                                case WEST: {
+                                    needsChest = (dx & 1) == 1 && (((dz & 1) == 0) == (secondaryDirection == Direction.SOUTH));
+                                    break;
+                                }
+                                default: {
+                                    throw new IllegalStateException();
+                                }
+                            }
+                            int x = (rectangleOrigin.x + dx) * 16 + ((dx & 1) == 0 ? 15 : 0);
+                            int z = (rectangleOrigin.y + dz) * 16 + ((dz & 1) == 0 ? 15 : 0);
+                            Point chunk = new Point(rectangleOrigin.x + dx, rectangleOrigin.y + dz);
+                            boolean isClusterChunk = clusterChunksSet.contains(chunk);
+                            if (isClusterChunk) {
+                                Random rand = new Random(OpenHashMap.hash(chunk, 0));
+                                String hopperName = String.format(WITTY_COMMENTS[rand.nextInt(WITTY_COMMENTS.length)], NAMES[rand.nextInt(NAMES.length)]);
+                                writer.println(String.format("setblock %d 165 %d hopper facing=%s replace {CustomName:\"%s\"}", x, z, secondaryDirection.getOpposite().internalName(), hopperName));
+                                writer.println(String.format("setblock %d 166 %d dropper facing=up", x, z));
+                                if (needsChest) {
+                                    writer.println(String.format("setblock %d 167 %d chest facing=%s", x, z, secondaryDirection.internalName()));
+                                }
+                            } else {
+                                boolean replacementNeeded;
+                                if (secondaryDirection.isXAxis()) {
+                                    replacementNeeded = ((dx & 1) == 0) == (secondaryDirection == Direction.EAST);
+                                    if (replacementNeeded && !clusterChunksSet.contains(new Point(rectangleOrigin.x + (dx ^ 1), rectangleOrigin.y + dz))) {
+                                        replacementNeeded = false;
+                                    }
+                                } else {
+                                    replacementNeeded = ((dz & 1) == 0) == (secondaryDirection == Direction.SOUTH);
+                                    if (replacementNeeded && !clusterChunksSet.contains(new Point(rectangleOrigin.x + dx, rectangleOrigin.y + (dz ^ 1)))) {
+                                        replacementNeeded = false;
+                                    }
+                                }
+                                if (replacementNeeded) {
+                                    writer.println(String.format("setblock %d 165 %d stonebrick", x, z));
+                                    if (needsChest) {
+                                        writer.println(String.format("setblock %d 166 %d chest facing=%s", x, z, secondaryDirection.internalName()));
+                                    }
+                                } else if (needsChest) {
+                                    writer.println(String.format("setblock %d 165 %d chest facing=%s", x, z, secondaryDirection.internalName()));
+                                }
+                            }
                         }
                     }
                 } catch (IOException ex) {
@@ -402,7 +522,16 @@ public class FallingClusterGui {
                 }
             }
         });
-        outputPanel.add(saveSetupMcFunctionButton);
+        saveSetupPanel.add(saveSetupMcFunctionButton);
+        JPanel directionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        directionPanel.add(new JLabel("Direction:"));
+        directionPanel.add(directionComboBox);
+        saveSetupPanel.add(directionPanel);
+        JPanel secondaryDirectionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        secondaryDirectionPanel.add(new JLabel("Secondary direction:"));
+        secondaryDirectionPanel.add(secondaryDirectionComboBox);
+        saveSetupPanel.add(secondaryDirectionPanel);
+        outputPanel.add(saveSetupPanel);
 
         JButton loadClusterMcFunctionButton = new JButton("Save Cluster Load MC Function");
         loadClusterMcFunctionButton.addActionListener(e -> {
