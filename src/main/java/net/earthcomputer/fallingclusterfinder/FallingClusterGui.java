@@ -39,21 +39,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
-import java.util.Random;
 import java.util.Set;
 
 public class FallingClusterGui {
-    private static final String[] NAMES = {"Xcom", "Kerb", "Cheater", "Earthcomputer", "coolmann", "punchster", "cortex", "Myren"};
-    private static final String[] WITTY_COMMENTS = {
-            "Don't listen to %s!",
-            "%s was here!",
-            "%s was crushed by a falling end portal frame!",
-            "%s didn't know anything about the project, so he placed this hopper instead.",
-            "%s claims this will be his final project. Lol.",
-            "A wild %s appeared!",
-            "%s claims this project will never see the light of day."
-    };
-
     private JPanel mainPanel;
     private JSpinner hashSizeInput;
     private JSpinner renderDistanceInput;
@@ -377,7 +365,6 @@ public class FallingClusterGui {
         });
         outputPanel.add(saveToCsvButton);
 
-        JPanel saveSetupPanel = new JPanel();
         JComboBox<Direction> directionComboBox = new JComboBox<>(Direction.values());
         JComboBox<Direction> secondaryDirectionComboBox = new JComboBox<>(((Direction) Objects.requireNonNull(directionComboBox.getSelectedItem())).getOrthogonalDirections());
         directionComboBox.addActionListener(e -> {
@@ -393,7 +380,6 @@ public class FallingClusterGui {
                 secondaryDirectionComboBox.setModel(new DefaultComboBoxModel<>(selectedDirection.getOrthogonalDirections()));
             }
         });
-        saveSetupPanel.setLayout(new BoxLayout(saveSetupPanel, BoxLayout.Y_AXIS));
         JButton saveSetupMcFunctionButton = new JButton("Save Setup MC Function");
         saveSetupMcFunctionButton.addActionListener(e -> {
             Direction direction = (Direction) directionComboBox.getSelectedItem();
@@ -418,120 +404,13 @@ public class FallingClusterGui {
                             writer.println(String.format("chunk load %d %d", rectangleOrigin.x + dx, rectangleOrigin.y + dz));
                         }
                     }
-                    // add stone brick lines
-                    if (direction.isXAxis()) {
-                        for (int dz = 0; dz < rectangleSize.y; dz += 2) {
-                            int z = (rectangleOrigin.y + dz) * 16 + (secondaryDirection == Direction.SOUTH ? 14 : 17);
-                            writer.println(String.format("fill %d 165 %d %d 165 %d stonebrick", rectangleOrigin.x * 16, z, (rectangleOrigin.x + rectangleSize.x) * 16 - 1, z));
-                        }
-                    } else {
-                        for (int dx = 0; dx < rectangleSize.x; dx += 2) {
-                            int x = (rectangleOrigin.x + dx) * 16 + (secondaryDirection == Direction.EAST ? 14 : 17);
-                            writer.println(String.format("fill %d 165 %d %d 165 %d stonebrick", x, rectangleOrigin.y * 16, x, (rectangleOrigin.y + rectangleSize.y) * 16 - 1));
-                        }
-                    }
-                    // add standalone chests
-                    for (int dx = 0; dx < rectangleSize.x; dx += 2) {
-                        for (int dz = 0; dz < rectangleSize.y; dz += 2) {
-                            int x, z;
-                            if (direction.isXAxis()) {
-                                x = direction == Direction.EAST ? (rectangleOrigin.x + dx) * 16 + 31 : (rectangleOrigin.x + dx) * 16;
-                                z = (rectangleOrigin.y + dz) * 16 + (secondaryDirection == Direction.SOUTH ? 15 : 16);
-                            } else {
-                                z = direction == Direction.SOUTH ? (rectangleOrigin.y + dz) * 16 + 31 : (rectangleOrigin.y + dz) * 16;
-                                x = (rectangleOrigin.x + dx) * 16 + (secondaryDirection == Direction.EAST ? 15 : 16);
-                            }
-                            if (x == rectangleOrigin.x * 16) {
-                                continue;
-                            }
-                            if (z == rectangleOrigin.y * 16) {
-                                continue;
-                            }
-                            if (x >= (rectangleOrigin.x + rectangleSize.x) * 16 - 1) {
-                                continue;
-                            }
-                            if (z >= (rectangleOrigin.y + rectangleSize.y) * 16 - 1) {
-                                continue;
-                            }
-                            writer.println(String.format("setblock %d 165 %d chest facing=%s", x, z, secondaryDirection.internalName()));
-                        }
-                    }
-                    // add hoppers or replacements
-                    for (int dx = 0; dx < rectangleSize.x; dx++) {
-                        for (int dz = 0; dz < rectangleSize.y; dz++) {
-                            boolean needsChest;
-                            switch (direction) {
-                                case NORTH: {
-                                    needsChest = (dz & 1) == 1 && (((dx & 1) == 0) == (secondaryDirection == Direction.EAST));
-                                    break;
-                                }
-                                case EAST: {
-                                    needsChest = (dx & 1) == 0 && (((dz & 1) == 0) == (secondaryDirection == Direction.SOUTH));
-                                    break;
-                                }
-                                case SOUTH: {
-                                    needsChest = (dz & 1) == 0 && (((dx & 1) == 0) == (secondaryDirection == Direction.EAST));
-                                    break;
-                                }
-                                case WEST: {
-                                    needsChest = (dx & 1) == 1 && (((dz & 1) == 0) == (secondaryDirection == Direction.SOUTH));
-                                    break;
-                                }
-                                default: {
-                                    throw new IllegalStateException();
-                                }
-                            }
-                            int x = (rectangleOrigin.x + dx) * 16 + ((dx & 1) == 0 ? 15 : 0);
-                            int z = (rectangleOrigin.y + dz) * 16 + ((dz & 1) == 0 ? 15 : 0);
-                            Point chunk = new Point(rectangleOrigin.x + dx, rectangleOrigin.y + dz);
-                            boolean isClusterChunk = clusterChunksSet.contains(chunk);
-                            if (isClusterChunk) {
-                                Random rand = new Random(OpenHashMap.hash(chunk, 0));
-                                String hopperName = String.format(WITTY_COMMENTS[rand.nextInt(WITTY_COMMENTS.length)], NAMES[rand.nextInt(NAMES.length)]);
-                                writer.println(String.format("setblock %d 165 %d hopper facing=%s replace {CustomName:\"%s\"}", x, z, secondaryDirection.getOpposite().internalName(), hopperName));
-                                writer.println(String.format("setblock %d 166 %d dropper facing=up", x, z));
-                                if (needsChest) {
-                                    writer.println(String.format("setblock %d 167 %d chest facing=%s", x, z, secondaryDirection.internalName()));
-                                }
-                            } else {
-                                boolean replacementNeeded;
-                                if (secondaryDirection.isXAxis()) {
-                                    replacementNeeded = ((dx & 1) == 0) == (secondaryDirection == Direction.EAST);
-                                    if (replacementNeeded && !clusterChunksSet.contains(new Point(rectangleOrigin.x + (dx ^ 1), rectangleOrigin.y + dz))) {
-                                        replacementNeeded = false;
-                                    }
-                                } else {
-                                    replacementNeeded = ((dz & 1) == 0) == (secondaryDirection == Direction.SOUTH);
-                                    if (replacementNeeded && !clusterChunksSet.contains(new Point(rectangleOrigin.x + dx, rectangleOrigin.y + (dz ^ 1)))) {
-                                        replacementNeeded = false;
-                                    }
-                                }
-                                if (replacementNeeded) {
-                                    writer.println(String.format("setblock %d 165 %d stonebrick", x, z));
-                                    if (needsChest) {
-                                        writer.println(String.format("setblock %d 166 %d chest facing=%s", x, z, secondaryDirection.internalName()));
-                                    }
-                                } else if (needsChest) {
-                                    writer.println(String.format("setblock %d 165 %d chest facing=%s", x, z, secondaryDirection.internalName()));
-                                }
-                            }
-                        }
-                    }
+                    generateStructure(rectangleOrigin, rectangleSize, direction, secondaryDirection, clusterChunksSet, new CommandStructureBuilder(writer::println));
                 } catch (IOException ex) {
                     JOptionPane.showMessageDialog(this.mainPanel, "Failed to save file: " + ex.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
                 }
             }
         });
-        saveSetupPanel.add(saveSetupMcFunctionButton);
-        JPanel directionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        directionPanel.add(new JLabel("Direction:"));
-        directionPanel.add(directionComboBox);
-        saveSetupPanel.add(directionPanel);
-        JPanel secondaryDirectionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        secondaryDirectionPanel.add(new JLabel("Secondary direction:"));
-        secondaryDirectionPanel.add(secondaryDirectionComboBox);
-        saveSetupPanel.add(secondaryDirectionPanel);
-        outputPanel.add(saveSetupPanel);
+        outputPanel.add(saveSetupMcFunctionButton);
 
         JButton loadClusterMcFunctionButton = new JButton("Save Cluster Load MC Function");
         loadClusterMcFunctionButton.addActionListener(e -> {
@@ -542,8 +421,7 @@ public class FallingClusterGui {
             if (fileChooser.showSaveDialog(this.mainPanel) == JFileChooser.APPROVE_OPTION) {
                 try (PrintWriter writer = new PrintWriter(fileChooser.getSelectedFile())) {
                     writer.println("# File generated by falling-cluster-finder");
-                    for (int i = 0; i < clusterChunks.size(); i++) {
-                        Point chunk = clusterChunks.get(i);
+                    for (Point chunk : clusterChunks) {
                         writer.println(String.format("chunk load %d %d", chunk.x, chunk.y));
                     }
                 } catch (IOException ex) {
@@ -553,7 +431,132 @@ public class FallingClusterGui {
         });
         outputPanel.add(loadClusterMcFunctionButton);
 
+        JButton saveLitematicButton = new JButton("Save Litematic");
+        saveLitematicButton.addActionListener(e -> {
+            Direction direction = (Direction) directionComboBox.getSelectedItem();
+            Direction secondaryDirection = (Direction) secondaryDirectionComboBox.getSelectedItem();
+            if (direction == null || secondaryDirection == null) {
+                return;
+            }
+            Set<Point> clusterChunksSet = new HashSet<>(chunks);
+            JFileChooser fileChooser = new JFileChooser();
+            fileChooser.setSelectedFile(new File("cluster.litematic"));
+            if (fileChooser.showSaveDialog(this.mainPanel) == JFileChooser.APPROVE_OPTION) {
+                LitematicStructureBuilder structure = new LitematicStructureBuilder();
+                generateStructure(rectangleOrigin, rectangleSize, direction, secondaryDirection, clusterChunksSet, structure);
+                structure.save(fileChooser.getSelectedFile());
+            }
+        });
+        outputPanel.add(saveLitematicButton);
+
         addOutput(outputPanel);
+
+        JPanel directionPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        directionPanel.add(new JLabel("Direction:"));
+        directionPanel.add(directionComboBox);
+        directionPanel.add(new JLabel("Secondary direction:"));
+        directionPanel.add(secondaryDirectionComboBox);
+        addOutput(directionPanel);
+    }
+
+    private void generateStructure(Point rectangleOrigin, Point rectangleSize, Direction direction, Direction secondaryDirection, Set<Point> clusterChunksSet, IStructureBuilder structure) {
+        // add stone brick lines
+        if (direction.isXAxis()) {
+            for (int dz = 0; dz < rectangleSize.y; dz += 2) {
+                int z = (rectangleOrigin.y + dz) * 16 + (secondaryDirection == Direction.SOUTH ? 14 : 17);
+                structure.fill(rectangleOrigin.x * 16, 165, z, (rectangleOrigin.x + rectangleSize.x) * 16 - 1, 165, z, "stonebrick");
+            }
+        } else {
+            for (int dx = 0; dx < rectangleSize.x; dx += 2) {
+                int x = (rectangleOrigin.x + dx) * 16 + (secondaryDirection == Direction.EAST ? 14 : 17);
+                structure.fill(x, 165, rectangleOrigin.y * 16, x, 165, (rectangleOrigin.y + rectangleSize.y) * 16 - 1, "stonebrick");
+            }
+        }
+        // add standalone chests
+        for (int dx = 0; dx < rectangleSize.x; dx += 2) {
+            for (int dz = 0; dz < rectangleSize.y; dz += 2) {
+                int x, z;
+                if (direction.isXAxis()) {
+                    x = direction == Direction.EAST ? (rectangleOrigin.x + dx) * 16 + 31 : (rectangleOrigin.x + dx) * 16;
+                    z = (rectangleOrigin.y + dz) * 16 + (secondaryDirection == Direction.SOUTH ? 15 : 16);
+                } else {
+                    z = direction == Direction.SOUTH ? (rectangleOrigin.y + dz) * 16 + 31 : (rectangleOrigin.y + dz) * 16;
+                    x = (rectangleOrigin.x + dx) * 16 + (secondaryDirection == Direction.EAST ? 15 : 16);
+                }
+                if (x == rectangleOrigin.x * 16) {
+                    continue;
+                }
+                if (z == rectangleOrigin.y * 16) {
+                    continue;
+                }
+                if (x >= (rectangleOrigin.x + rectangleSize.x) * 16 - 1) {
+                    continue;
+                }
+                if (z >= (rectangleOrigin.y + rectangleSize.y) * 16 - 1) {
+                    continue;
+                }
+                structure.setblock(x, 165, z, "chest", "facing", secondaryDirection.internalName());
+            }
+        }
+        // add hoppers or replacements
+        for (int dx = 0; dx < rectangleSize.x; dx++) {
+            for (int dz = 0; dz < rectangleSize.y; dz++) {
+                boolean needsChest;
+                switch (direction) {
+                    case NORTH: {
+                        needsChest = (dz & 1) == 1 && (((dx & 1) == 0) == (secondaryDirection == Direction.EAST));
+                        break;
+                    }
+                    case EAST: {
+                        needsChest = (dx & 1) == 0 && (((dz & 1) == 0) == (secondaryDirection == Direction.SOUTH));
+                        break;
+                    }
+                    case SOUTH: {
+                        needsChest = (dz & 1) == 0 && (((dx & 1) == 0) == (secondaryDirection == Direction.EAST));
+                        break;
+                    }
+                    case WEST: {
+                        needsChest = (dx & 1) == 1 && (((dz & 1) == 0) == (secondaryDirection == Direction.SOUTH));
+                        break;
+                    }
+                    default: {
+                        throw new IllegalStateException();
+                    }
+                }
+                int x = (rectangleOrigin.x + dx) * 16 + ((dx & 1) == 0 ? 15 : 0);
+                int z = (rectangleOrigin.y + dz) * 16 + ((dz & 1) == 0 ? 15 : 0);
+                Point chunk = new Point(rectangleOrigin.x + dx, rectangleOrigin.y + dz);
+                boolean isClusterChunk = clusterChunksSet.contains(chunk);
+                if (isClusterChunk) {
+                    structure.setblock(x, 165, z, "hopper", "facing", secondaryDirection.getOpposite().internalName());
+                    structure.setblock(x, 166, z, "dropper", "facing", "up");
+                    if (needsChest) {
+                        structure.setblock(x, 167, z, "chest", "facing", secondaryDirection.internalName());
+                    }
+                } else {
+                    boolean replacementNeeded;
+                    if (secondaryDirection.isXAxis()) {
+                        replacementNeeded = ((dx & 1) == 0) == (secondaryDirection == Direction.EAST);
+                        if (replacementNeeded && !clusterChunksSet.contains(new Point(rectangleOrigin.x + (dx ^ 1), rectangleOrigin.y + dz))) {
+                            replacementNeeded = false;
+                        }
+                    } else {
+                        replacementNeeded = ((dz & 1) == 0) == (secondaryDirection == Direction.SOUTH);
+                        if (replacementNeeded && !clusterChunksSet.contains(new Point(rectangleOrigin.x + dx, rectangleOrigin.y + (dz ^ 1)))) {
+                            replacementNeeded = false;
+                        }
+                    }
+                    if (replacementNeeded) {
+                        structure.setblock(x, 165, z, "stonebrick");
+                        if (needsChest) {
+                            structure.setblock(x, 166, z, "chest", "facing", secondaryDirection.internalName());
+                        }
+                    } else if (needsChest) {
+                        structure.setblock(x, 165, z, "chest", "facing", secondaryDirection.internalName());
+                    }
+                }
+            }
+        }
     }
 
     public void addRehashWarning(int sizeBefore, int hashSizeAfter) {

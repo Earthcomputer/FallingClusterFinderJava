@@ -8,6 +8,14 @@ version '1.0'
 
 repositories {
     mavenCentral()
+    maven {
+        name = 'JitPack'
+        url = 'https://jitpack.io'
+    }
+}
+
+dependencies {
+    implementation 'com.github.Querz:NBT:6.1'
 }
 
 jar {
@@ -16,6 +24,7 @@ jar {
             'Main-Class': 'net.earthcomputer.fallingclusterfinder.FallingClusterFinder'
         ]
     }
+    from configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
 }
 
 test {
