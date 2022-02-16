@@ -459,22 +459,96 @@ public class FallingClusterGui {
         addOutput(directionPanel);
     }
 
-    private void generateStructure(Point rectangleOrigin, Point rectangleSize, Direction direction, Direction secondaryDirection, Set<Point> clusterChunksSet, IStructureBuilder structure) {
+    private static int getMaxPos(Point rectangleOrigin, Point rectangleSize, Direction direction, int rowNum, Set<Point> clusterChunksSet) {
+        switch (direction) {
+            case NORTH: {
+                int chunkZ;
+                for (chunkZ = rectangleOrigin.y; chunkZ < rectangleOrigin.y + rectangleSize.y; chunkZ++) {
+                    if (clusterChunksSet.contains(new Point(rectangleOrigin.x + rowNum, chunkZ))) {
+                        break;
+                    }
+                }
+                return chunkZ * 16 + (((chunkZ - rectangleOrigin.y) & 1) == 0 ? 15 : 0);
+            }
+            case SOUTH: {
+                int chunkZ;
+                for (chunkZ = rectangleOrigin.y + rectangleSize.y - 1; chunkZ >= rectangleOrigin.y; chunkZ--) {
+                    if (clusterChunksSet.contains(new Point(rectangleOrigin.x + rowNum, chunkZ))) {
+                        break;
+                    }
+                }
+                return chunkZ * 16 + (((chunkZ - rectangleOrigin.y) & 1) == 0 ? 15 : 0);
+            }
+            case WEST: {
+                int chunkX;
+                for (chunkX = rectangleOrigin.x; chunkX < rectangleOrigin.x + rectangleSize.x; chunkX++) {
+                    if (clusterChunksSet.contains(new Point(chunkX, rectangleOrigin.y + rowNum))) {
+                        break;
+                    }
+                }
+                return chunkX * 16 + (((chunkX - rectangleOrigin.x) & 1) == 0 ? 15 : 0);
+            }
+            case EAST: {
+                int chunkX;
+                for (chunkX = rectangleOrigin.x + rectangleSize.x - 1; chunkX >= rectangleOrigin.x; chunkX--) {
+                    if (clusterChunksSet.contains(new Point(chunkX, rectangleOrigin.y + rowNum))) {
+                        break;
+                    }
+                }
+                return chunkX * 16 + (((chunkX - rectangleOrigin.x) & 1) == 0 ? 15 : 0);
+            }
+            default: throw new IllegalArgumentException("Unknown direction: " + direction);
+        }
+    }
+
+    private static void generateStructure(Point rectangleOrigin, Point rectangleSize, Direction direction, Direction secondaryDirection, Set<Point> clusterChunksSet, IStructureBuilder structure) {
         // add stone brick lines
         if (direction.isXAxis()) {
             for (int dz = 0; dz < rectangleSize.y; dz += 2) {
+                int minX = Math.min(getMaxPos(rectangleOrigin, rectangleSize, Direction.WEST, dz, clusterChunksSet), getMaxPos(rectangleOrigin, rectangleSize, Direction.WEST, dz + 1, clusterChunksSet));
+                if (direction == Direction.EAST) {
+                    minX = rectangleOrigin.x * 16;
+                }
+                int maxX = Math.max(getMaxPos(rectangleOrigin, rectangleSize, Direction.EAST, dz, clusterChunksSet), getMaxPos(rectangleOrigin, rectangleSize, Direction.EAST, dz + 1, clusterChunksSet));
+                if (direction == Direction.WEST) {
+                    maxX = (rectangleOrigin.x + rectangleSize.x) * 16 - 1;
+                }
                 int z = (rectangleOrigin.y + dz) * 16 + (secondaryDirection == Direction.SOUTH ? 14 : 17);
-                structure.fill(rectangleOrigin.x * 16, 165, z, (rectangleOrigin.x + rectangleSize.x) * 16 - 1, 165, z, "stonebrick");
+                structure.fill(minX, 165, z, maxX, 165, z, "stonebrick");
             }
         } else {
             for (int dx = 0; dx < rectangleSize.x; dx += 2) {
                 int x = (rectangleOrigin.x + dx) * 16 + (secondaryDirection == Direction.EAST ? 14 : 17);
-                structure.fill(x, 165, rectangleOrigin.y * 16, x, 165, (rectangleOrigin.y + rectangleSize.y) * 16 - 1, "stonebrick");
+                int minZ = Math.min(getMaxPos(rectangleOrigin, rectangleSize, Direction.NORTH, dx, clusterChunksSet), getMaxPos(rectangleOrigin, rectangleSize, Direction.NORTH, dx + 1, clusterChunksSet));
+                if (direction == Direction.SOUTH) {
+                    minZ = rectangleOrigin.y * 16;
+                }
+                int maxZ = Math.max(getMaxPos(rectangleOrigin, rectangleSize, Direction.SOUTH, dx, clusterChunksSet), getMaxPos(rectangleOrigin, rectangleSize, Direction.SOUTH, dx + 1, clusterChunksSet));
+                if (direction == Direction.NORTH) {
+                    maxZ = (rectangleOrigin.y + rectangleSize.y) * 16 - 1;
+                }
+                structure.fill(x, 165, minZ, x, 165, maxZ, "stonebrick");
             }
         }
         // add standalone chests
         for (int dx = 0; dx < rectangleSize.x; dx += 2) {
+            int minZ = Math.min(getMaxPos(rectangleOrigin, rectangleSize, Direction.NORTH, dx, clusterChunksSet), getMaxPos(rectangleOrigin, rectangleSize, Direction.NORTH, dx + 1, clusterChunksSet));
+            if (direction == Direction.SOUTH) {
+                minZ = rectangleOrigin.y * 16;
+            }
+            int maxZ = Math.max(getMaxPos(rectangleOrigin, rectangleSize, Direction.SOUTH, dx, clusterChunksSet), getMaxPos(rectangleOrigin, rectangleSize, Direction.SOUTH, dx + 1, clusterChunksSet));
+            if (direction == Direction.NORTH) {
+                maxZ = (rectangleOrigin.y + rectangleSize.y) * 16 - 1;
+            }
             for (int dz = 0; dz < rectangleSize.y; dz += 2) {
+                int minX = Math.min(getMaxPos(rectangleOrigin, rectangleSize, Direction.WEST, dz, clusterChunksSet), getMaxPos(rectangleOrigin, rectangleSize, Direction.WEST, dz + 1, clusterChunksSet));
+                if (direction == Direction.EAST) {
+                    minX = rectangleOrigin.x * 16;
+                }
+                int maxX = Math.max(getMaxPos(rectangleOrigin, rectangleSize, Direction.EAST, dz, clusterChunksSet), getMaxPos(rectangleOrigin, rectangleSize, Direction.EAST, dz + 1, clusterChunksSet));
+                if (direction == Direction.WEST) {
+                    maxX = (rectangleOrigin.x + rectangleSize.x) * 16 - 1;
+                }
                 int x, z;
                 if (direction.isXAxis()) {
                     x = direction == Direction.EAST ? (rectangleOrigin.x + dx) * 16 + 31 : (rectangleOrigin.x + dx) * 16;
@@ -483,24 +557,43 @@ public class FallingClusterGui {
                     z = direction == Direction.SOUTH ? (rectangleOrigin.y + dz) * 16 + 31 : (rectangleOrigin.y + dz) * 16;
                     x = (rectangleOrigin.x + dx) * 16 + (secondaryDirection == Direction.EAST ? 15 : 16);
                 }
-                if (x == rectangleOrigin.x * 16) {
-                    continue;
-                }
-                if (z == rectangleOrigin.y * 16) {
-                    continue;
-                }
-                if (x >= (rectangleOrigin.x + rectangleSize.x) * 16 - 1) {
-                    continue;
-                }
-                if (z >= (rectangleOrigin.y + rectangleSize.y) * 16 - 1) {
-                    continue;
+                if (direction.isXAxis()) {
+                    if (x < minX) {
+                        continue;
+                    }
+                    if (x > maxX) {
+                        continue;
+                    }
+                } else {
+                    if (z < minZ) {
+                        continue;
+                    }
+                    if (z > maxZ) {
+                        continue;
+                    }
                 }
                 structure.setblock(x, 165, z, "chest", "facing", secondaryDirection.internalName());
             }
         }
         // add hoppers or replacements
         for (int dx = 0; dx < rectangleSize.x; dx++) {
+            int minZ = Math.min(getMaxPos(rectangleOrigin, rectangleSize, Direction.NORTH, dx & ~1, clusterChunksSet), getMaxPos(rectangleOrigin, rectangleSize, Direction.NORTH, dx | 1, clusterChunksSet));
+            if (direction == Direction.SOUTH) {
+                minZ = rectangleOrigin.y * 16;
+            }
+            int maxZ = Math.max(getMaxPos(rectangleOrigin, rectangleSize, Direction.SOUTH, dx & ~1, clusterChunksSet), getMaxPos(rectangleOrigin, rectangleSize, Direction.SOUTH, dx | 1, clusterChunksSet));
+            if (direction == Direction.NORTH) {
+                maxZ = (rectangleOrigin.y + rectangleSize.y) * 16 - 1;
+            }
             for (int dz = 0; dz < rectangleSize.y; dz++) {
+                int minX = Math.min(getMaxPos(rectangleOrigin, rectangleSize, Direction.WEST, dz & ~1, clusterChunksSet), getMaxPos(rectangleOrigin, rectangleSize, Direction.WEST, dz | 1, clusterChunksSet));
+                if (direction == Direction.EAST) {
+                    minX = rectangleOrigin.x * 16;
+                }
+                int maxX = Math.max(getMaxPos(rectangleOrigin, rectangleSize, Direction.EAST, dz & ~1, clusterChunksSet), getMaxPos(rectangleOrigin, rectangleSize, Direction.EAST, dz | 1, clusterChunksSet));
+                if (direction == Direction.WEST) {
+                    maxX = (rectangleOrigin.x + rectangleSize.x) * 16 - 1;
+                }
                 boolean needsChest;
                 switch (direction) {
                     case NORTH: {
@@ -525,6 +618,15 @@ public class FallingClusterGui {
                 }
                 int x = (rectangleOrigin.x + dx) * 16 + ((dx & 1) == 0 ? 15 : 0);
                 int z = (rectangleOrigin.y + dz) * 16 + ((dz & 1) == 0 ? 15 : 0);
+                if (direction.isXAxis()) {
+                    if (x < minX || x > maxX) {
+                        continue;
+                    }
+                } else {
+                    if (z < minZ || z > maxZ) {
+                        continue;
+                    }
+                }
                 Point chunk = new Point(rectangleOrigin.x + dx, rectangleOrigin.y + dz);
                 boolean isClusterChunk = clusterChunksSet.contains(chunk);
                 if (isClusterChunk) {
