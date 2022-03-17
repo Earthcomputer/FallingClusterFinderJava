@@ -87,6 +87,13 @@
               <text value="0"/>
             </properties>
           </component>
+          <component id="a4fb4" class="javax.swing.JCheckBox" binding="enableSpawnPointCheckbox">
+            <constraints/>
+            <properties>
+              <selected value="true"/>
+              <text value="Enable Spawn Chunks"/>
+            </properties>
+          </component>
         </children>
       </grid>
       <grid id="240e" layout-manager="FlowLayout" hgap="5" vgap="5" flow-align="0">

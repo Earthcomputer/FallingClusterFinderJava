@@ -50,8 +50,15 @@ public class FallingClusterFinder {
     public static void start() {
         int hashSize = gui.getHashSize();
         int renderDistance = gui.getRenderDistance();
-        OptionalInt spawnBlockX = gui.getSpawnX();
-        OptionalInt spawnBlockZ = gui.getSpawnZ();
+        OptionalInt spawnBlockX;
+        OptionalInt spawnBlockZ;
+        boolean spawnChunksEnabled = gui.areSpawnChunksEnabled();
+        if (spawnChunksEnabled) {
+            spawnBlockX = gui.getSpawnX();
+            spawnBlockZ = gui.getSpawnZ();
+        } else {
+            spawnBlockX = spawnBlockZ = OptionalInt.empty();
+        }
         OptionalInt glassChunkX = gui.getGlassX();
         OptionalInt glassChunkZ = gui.getGlassZ();
         OptionalInt unloadSearchChunkX = gui.getUnloadChunkSearchFromX();
@@ -63,8 +70,7 @@ public class FallingClusterFinder {
         int minSearch = gui.getSearchLimit();
         Optional<List<FallingClusterGui.PermaloaderLine>> permaloaderLines = gui.getPermaloaderLines();
 
-        if (!spawnBlockX.isPresent()
-                || !spawnBlockZ.isPresent()
+        if ((spawnChunksEnabled && (!spawnBlockX.isPresent() || !spawnBlockZ.isPresent()))
                 || !glassChunkX.isPresent()
                 || !glassChunkZ.isPresent()
                 || !unloadSearchChunkX.isPresent()
@@ -89,7 +95,7 @@ public class FallingClusterFinder {
                 find(
                         hashSize,
                         renderDistance,
-                        new Point(spawnBlockX.getAsInt(), spawnBlockZ.getAsInt()),
+                        spawnChunksEnabled ? new Point(spawnBlockX.getAsInt(), spawnBlockZ.getAsInt()) : null,
                         new Point(glassChunkX.getAsInt(), glassChunkZ.getAsInt()),
                         new Point(unloadSearchChunkX.getAsInt(), unloadSearchChunkZ.getAsInt()),
                         rectangleWidth,
@@ -173,13 +179,15 @@ public class FallingClusterFinder {
     }
 
     private static void prefillHashMap(int hashSize, Point spawnPos, Point glassChunk, List<FallingClusterGui.PermaloaderLine> permaloaders, OpenHashMap preloadedChunks, OpenHashMap illegalChunks) {
-        Point xSpawnChunksRange = getSpawnChunksRange(spawnPos.x);
-        Point zSpawnChunksRange = getSpawnChunksRange(spawnPos.y);
-        for (int spawnX = xSpawnChunksRange.x; spawnX <= xSpawnChunksRange.y; spawnX++) {
-            for (int spawnZ = zSpawnChunksRange.x; spawnZ <= zSpawnChunksRange.y; spawnZ++) {
-                Point spawnChunk = new Point(spawnX, spawnZ);
-                preloadedChunks.insert(spawnChunk);
-                illegalChunks.insert(spawnChunk);
+        if (spawnPos != null) {
+            Point xSpawnChunksRange = getSpawnChunksRange(spawnPos.x);
+            Point zSpawnChunksRange = getSpawnChunksRange(spawnPos.y);
+            for (int spawnX = xSpawnChunksRange.x; spawnX <= xSpawnChunksRange.y; spawnX++) {
+                for (int spawnZ = zSpawnChunksRange.x; spawnZ <= zSpawnChunksRange.y; spawnZ++) {
+                    Point spawnChunk = new Point(spawnX, spawnZ);
+                    preloadedChunks.insert(spawnChunk);
+                    illegalChunks.insert(spawnChunk);
+                }
             }
         }
 

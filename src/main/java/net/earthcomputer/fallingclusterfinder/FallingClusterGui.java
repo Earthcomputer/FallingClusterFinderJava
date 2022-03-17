@@ -47,6 +47,7 @@ public class FallingClusterGui {
     private JSpinner renderDistanceInput;
     private JTextField spawnXInput;
     private JTextField spawnZInput;
+    private JCheckBox enableSpawnPointCheckbox;
     private JTextField glassXInput;
     private JTextField glassZInput;
     private JTextField unloadChunkSearchFromXInput;
@@ -73,6 +74,11 @@ public class FallingClusterGui {
     private final List<PermaloaderLinePanel> permaloaderLines = new ArrayList<>();
 
     public FallingClusterGui() {
+        enableSpawnPointCheckbox.addActionListener(e -> {
+            boolean enableSpawnPoint = enableSpawnPointCheckbox.isSelected();
+            spawnXInput.setEnabled(enableSpawnPoint);
+            spawnZInput.setEnabled(enableSpawnPoint);
+        });
         addLineButton.addActionListener(e -> {
             PermaloaderLinePanel newLine = new PermaloaderLinePanel();
             permaloaderComponent.add(newLine, permaloaderLines.size());
@@ -234,6 +240,10 @@ public class FallingClusterGui {
         return parseInt(spawnZInput);
     }
 
+    public boolean areSpawnChunksEnabled() {
+        return enableSpawnPointCheckbox.isSelected();
+    }
+
     public OptionalInt getGlassX() {
         return parseInt(glassXInput);
     }
@@ -296,6 +306,10 @@ public class FallingClusterGui {
     }
 
     public void setRunning(boolean running) {
+        if (!running) {
+            progressBar.setValue(progressBar.getMinimum());
+        }
+        progressBar.setIndeterminate(running);
         searchButton.setEnabled(!running);
         cancelButton.setEnabled(running);
         if (running) {
